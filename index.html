@@ -100,7 +100,7 @@
 
         .channel-row {
             display: flex;
-            height: 60px; /* Slightly taller for upload button */
+            height: 60px; 
             margin-bottom: 8px;
             align-items: center;
             min-width: max-content;
@@ -111,7 +111,7 @@
         .channel-row.muted .channel-name { text-decoration: line-through; }
 
         .channel-controls {
-            width: 130px; /* Wider for upload btn */
+            width: 130px; 
             padding-right: 15px;
             display: flex;
             flex-direction: column;
@@ -130,7 +130,6 @@
 
         .channel-name { font-size: 0.7rem; font-weight: bold; color: #fff; letter-spacing: 1px;}
         
-        /* Upload Button Style */
         .upload-btn {
             background: none; border: 1px solid #444; color: #888;
             width: 20px; height: 20px; border-radius: 3px; cursor: pointer;
@@ -240,7 +239,6 @@
 <header>
     <div class="header-left">
         <h1>Hey DreamPad, let's jam?</h1>
-        <br>
         <div class="subtitle">
             <span>Space = Play</span>
             <span>K = Kick Mute</span>
@@ -308,7 +306,6 @@ window.addEventListener('DOMContentLoaded', () => {
         const STEPS = 16;
         const CHANNELS = [
             { id: 'glitter', name: 'GLITTER', type: 'melodic', oct: 5, vol: -14 }, 
-            // NEW: Vocal Track with Upload Capability
             { id: 'vocal',   name: 'VOCAL',   type: 'sample',  oct: 4, vol: -4, upload: true },
             { id: 'hats',    name: 'HATS',    type: 'noise',   oct: 0, vol: -6 },
             { id: 'pluck',   name: 'PLUCK',   type: 'melodic', oct: 4, vol: -10 },
@@ -334,7 +331,7 @@ window.addEventListener('DOMContentLoaded', () => {
         let bus = {};
         let recorder, chunks = [];
         let analyser;
-        let vocalBuffer = null; // To store user uploaded audio
+        let vocalBuffer = null; 
 
         // --- BUILD UI ---
         const gridWrapper = document.getElementById('grid-wrapper');
@@ -350,7 +347,6 @@ window.addEventListener('DOMContentLoaded', () => {
             const controls = document.createElement('div');
             controls.className = 'channel-controls'; 
             
-            // Header with potential upload button
             let headerHTML = `<div class="channel-name">${chan.name}</div>`;
             
             if (chan.upload) {
@@ -396,7 +392,6 @@ window.addEventListener('DOMContentLoaded', () => {
             gridWrapper.appendChild(row);
         });
 
-        // File Upload Logic
         const uploadBtn = document.getElementById('uploadBtn');
         const fileInput = document.getElementById('vocalUpload');
         
@@ -408,10 +403,8 @@ window.addEventListener('DOMContentLoaded', () => {
             const file = e.target.files[0];
             if (file) {
                 if(!hasStarted) await initAudio();
-                
                 const url = URL.createObjectURL(file);
-                // Load into Tone.Player
-                const player = new Tone.Player(url).connect(bus.sidechain); // Route to sidechain
+                const player = new Tone.Player(url).connect(bus.sidechain); 
                 await player.loaded;
                 synths.vocalPlayer = player;
                 uploadBtn.classList.add('has-file');
@@ -444,22 +437,17 @@ window.addEventListener('DOMContentLoaded', () => {
             bus.filter.connect(bus.limiter); 
             bus.clean = new Tone.Gain(1).connect(bus.limiter);
 
-            // --- NEW: SIDECHAIN BUS ---
-            // This bus sits before the Filter/Comp.
-            // Anything routed here will get "ducked" by the kick.
             bus.sidechain = new Tone.Gain(1).connect(bus.preFilter);
 
             bus.comp = new Tone.Compressor({
                 threshold: -20, ratio: 4, attack: 0.05, release: 0.2
             }).connect(bus.preFilter);
 
-            // Kick (Direct to comp, not sidechained by itself)
             synths.kick = new Tone.MembraneSynth({
                 pitchDecay: 0.05, octaves: 6,
                 envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4 }
             }).connect(bus.comp);
 
-            // BASS -> Sidechain
             synths.bass = new Tone.MonoSynth({
                 oscillator: { type: "sawtooth" },
                 filter: { type: "lowpass", rolloff: -24, Q: 1 },
@@ -467,7 +455,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.1, baseFrequency: 60, octaves: 2.5 }
             }).connect(bus.sidechain);
 
-            // HORN -> Sidechain
             synths.horn = new Tone.MonoSynth({
                 oscillator: { type: "sawtooth" },
                 filter: { type: "lowpass", rolloff: -24, Q: 2 },
@@ -475,32 +462,26 @@ window.addEventListener('DOMContentLoaded', () => {
                 filterEnvelope: { attack: 0.2, decay: 0.5, sustain: 0.5, baseFrequency: 100, octaves: 3 }
             }).connect(bus.sidechain);
 
-            // PAD -> Sidechain
             synths.pad = new Tone.PolySynth(Tone.Synth, {
                 oscillator: { type: "fatsawtooth", count: 3, spread: 20 },
                 envelope: { attack: 0.8, decay: 1, sustain: 0.6, release: 2 }
             }).connect(bus.sidechain);
 
-            // PLUCK -> Sidechain
             synths.pluck = new Tone.PolySynth(Tone.Synth, {
                 oscillator: { type: "triangle" },
                 envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 1 }
             }).connect(bus.sidechain);
 
-            // GLITTER -> Delay (No sidechain usually needed for high freq transients)
             synths.glitter = new Tone.PolySynth(Tone.Synth, {
                 oscillator: { type: "sine" },
                 envelope: { attack: 0.02, decay: 0.2, sustain: 0.1, release: 1 }
             }).connect(bus.delay);
 
-            // HATS -> Clean
             synths.hats = new Tone.MetalSynth({
                 frequency: 2500, envelope: { attack: 0.001, decay: 0.05, release: 0.01 },
                 harmonicity: 5.1, modulationIndex: 40, resonance: 3000, octaves: 1
             }).connect(bus.clean);
 
-            // VOCAL SYNTH (Default) -> Sidechain
-            // A breathy, choir-like synth if no sample is loaded
             synths.vocal = new Tone.PolySynth(Tone.Synth, {
                 oscillator: { type: "sine" },
                 envelope: { attack: 0.5, decay: 1, sustain: 0.8, release: 1.5 }
@@ -530,24 +511,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
             CHANNELS.forEach((chan, tIndex) => {
                 if (gridData[tIndex][currentStep]) {
-                    
-                    // SIDECHAIN TRIGGER
-                    // If Kick is playing, duck the sidechain bus
                     if (chan.id === 'kick' && !kickMuted) {
-                        // The Ducking Envelope
-                        // Drop volume to 0.1 quickly, then recover
                         bus.sidechain.gain.cancelScheduledValues(time);
                         bus.sidechain.gain.setValueAtTime(0.1, time);
-                        bus.sidechain.gain.linearRampToValueAtTime(1, time + 0.15); // 150ms recovery
+                        bus.sidechain.gain.linearRampToValueAtTime(1, time + 0.15); 
                     }
-
-                    // Kick Mute Logic
                     if (chan.id === 'kick' && kickMuted) return;
-                    
                     playNote(chan, time);
                 }
             });
-
             currentStep = (currentStep + 1) % STEPS;
         }
 
@@ -560,16 +532,15 @@ window.addEventListener('DOMContentLoaded', () => {
             if(chan.id === 'kick') {
                 synths.kick.triggerAttackRelease(root + "1", "8n", time);
             } else if (chan.type === 'noise') {
-                synths.hats.triggerAttackRelease("32n", time, Math.random()*0.3 + 0.7);
+                // FIX: Added note pitch for MetalSynth
+                synths.hats.triggerAttackRelease("C4", "32n", time, Math.random()*0.3 + 0.7);
             } else if (chan.id === 'horn') {
                 synths.horn.triggerAttackRelease(root + chan.oct, "4n", time);
             } else if (chan.id === 'vocal') {
-                // Check if we have a sample loaded
                 if (synths.vocalPlayer && synths.vocalPlayer.loaded) {
                     synths.vocalPlayer.start(time);
                 } else {
-                    // Fallback to synth
-                    const vNote = scale[(safeIndex + 4) % scale.length]; // Harmony note
+                    const vNote = scale[(safeIndex + 4) % scale.length]; 
                     synths.vocal.triggerAttackRelease([vNote + chan.oct, root + chan.oct], "2n", time);
                 }
             } else if (chan.type === 'chord') {
@@ -627,6 +598,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const kickBtn = document.getElementById('kickBtn');
         function toggleKick() {
             kickMuted = !kickMuted;
+            // Select by dataset
             const rows = document.querySelectorAll('.channel-row');
             let row;
             rows.forEach(r => { if(r.dataset.id === 'kick') row = r; });
@@ -675,16 +647,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
         document.querySelectorAll('.vol-slider').forEach(slider => {
             slider.addEventListener('input', (e) => {
-                if(e.target.dataset.id) {
-                    const id = e.target.dataset.id;
-                    // Handle Volume for vocal synth vs vocal player
-                    if (id === 'vocal') {
-                         if(synths.vocalPlayer) synths.vocalPlayer.volume.rampTo(parseFloat(e.target.value), 0.1);
-                         if(synths.vocal) synths.vocal.volume.rampTo(parseFloat(e.target.value), 0.1);
-                    }
-                    else if(synths[id]) {
-                        synths[id].volume.rampTo(parseFloat(e.target.value), 0.1);
-                    }
+                const id = e.target.dataset.id;
+                if (id === 'vocal') {
+                     if(synths.vocalPlayer) synths.vocalPlayer.volume.rampTo(parseFloat(e.target.value), 0.1);
+                     if(synths.vocal) synths.vocal.volume.rampTo(parseFloat(e.target.value), 0.1);
+                }
+                else if(synths[id]) {
+                    synths[id].volume.rampTo(parseFloat(e.target.value), 0.1);
                 }
             });
         });
