@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>DreamPad: Freestyle Emotive DAW v2 | Projects by Ash</title>
+    <!-- Load Tone.js with defer to ensure non-blocking -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         :root {
@@ -52,7 +53,6 @@
 
         .transport { display: flex; gap: 10px; align-items: center; }
 
-        /* Utility Buttons */
         button {
             background: #2c2c35;
             border: 1px solid #444;
@@ -71,12 +71,10 @@
         button:hover { border-color: var(--accent); color: var(--accent); }
         button.active { background: var(--accent); color: #000; border-color: var(--accent); }
 
-        /* Transport Buttons (Play/Rec) */
         .btn-icon { font-size: 1.2rem; width: 40px; }
         .btn-rec.active { color: var(--danger); border-color: var(--danger); background: transparent; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-        /* Key & BPM Inputs */
         input[type=number] {
             background: #111; border: 1px solid #444; color: var(--accent);
             padding: 5px; width: 50px; text-align: center; border-radius: 4px; height: 36px; font-weight: bold;
@@ -107,11 +105,9 @@
             transition: opacity 0.2s;
         }
         
-        /* Muted State styling for rows */
         .track-row.muted { opacity: 0.4; }
         .track-row.muted .track-name { text-decoration: line-through; }
 
-        /* Sticky Left Column */
         .track-controls {
             width: 120px;
             padding-right: 15px;
@@ -140,7 +136,6 @@
         }
         .vol-slider:hover::-webkit-slider-thumb { background: var(--accent); }
 
-        /* Steps */
         .sequencer-steps { display: flex; gap: 4px; margin-left: 5px; }
 
         .step {
@@ -154,7 +149,6 @@
         
         .step.active { background: var(--step-on); box-shadow: 0 0 10px rgba(223, 174, 104, 0.2); }
         .step.current { border: 1px solid #fff; z-index: 5; }
-        /* 4/4 markers */
         .step:nth-child(4n) { margin-right: 8px; } 
 
         /* --- BOTTOM FX PANEL --- */
@@ -182,7 +176,6 @@
         }
         .hotkey { color: var(--accent); opacity: 0.7; }
 
-        /* Performance Buttons */
         .perf-group { display: flex; gap: 10px; margin-left: auto; }
         
         .perf-btn {
@@ -195,7 +188,6 @@
         .riser-btn { border-bottom: 3px solid #a29bfe; }
         .riser-btn.active { background: #a29bfe; border-color: #a29bfe; color: #fff; }
 
-        /* Visualizer */
         #visualizer {
             width: 150px; height: 60px;
             background: #000; border-radius: 4px; border: 1px solid #333;
@@ -203,8 +195,19 @@
             opacity: 0.7;
         }
         
+        /* LOADING SCREEN */
+        #loading-overlay {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: var(--bg);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 100;
+            color: var(--accent);
+            font-size: 1.2rem;
+            transition: opacity 0.5s;
+        }
+
         @media (max-width: 600px) {
-            .subtitle span { display: none; } /* Hide hints on mobile */
+            .subtitle span { display: none; } 
             h1 { font-size: 0.9rem; }
             .fx-panel { gap: 15px; padding: 10px; }
             .step { width: 32px; }
@@ -213,9 +216,12 @@
 </head>
 <body>
 
+<!-- Loading Indicator -->
+<div id="loading-overlay">Loading Studio...</div>
+
 <header>
     <div class="header-left">
-        <h1>DreamPad, Let's Jam?</h1>
+        <h1>EMOTIVE // ENGINE</h1>
         <div class="subtitle">
             <span>Space = Play</span>
             <span>K = Kick Mute</span>
@@ -270,6 +276,15 @@
 </div>
 
 <script>
+// Wait for DOM to be ready before running script
+window.addEventListener('DOMContentLoaded', () => {
+    
+    // Check if Tone is loaded
+    if (typeof Tone === 'undefined') {
+        document.getElementById('loading-overlay').innerText = "Error: Could not load Audio Engine (Check Connection)";
+        return;
+    }
+
     // --- CONFIGURATION ---
     const STEPS = 16;
     const TRACKS = [
@@ -290,7 +305,7 @@
     let transpose = 0;
     let gridData = []; 
     let isRiser = false;
-    let kickMuted = false; // Kill Switch state
+    let kickMuted = false; 
     
     // Audio
     let synths = {};
@@ -301,12 +316,15 @@
     // --- BUILD UI ---
     const gridWrapper = document.getElementById('grid-wrapper');
 
+    // Clear any existing content (safety)
+    gridWrapper.innerHTML = '';
+
     TRACKS.forEach((track, tIndex) => {
         gridData[tIndex] = new Array(STEPS).fill(false);
 
         const row = document.createElement('div');
         row.className = 'track-row';
-        row.id = `row-${tIndex}`; // Used for muting visual
+        row.id = `row-${tIndex}`;
 
         const controls = document.createElement('div');
         controls.className = 'track-controls';
@@ -327,16 +345,13 @@
             
             // --- PATTERN INIT (Clean Start) ---
             let active = false;
-            // Only Kick and Hats are pre-filled
             if(track.id === 'kick' && s % 4 === 0) active = true;
             if(track.id === 'hats' && s % 2 !== 0) active = true;
             
-            // Bass, Pads, Pluck etc are empty for the user
-
             if(active) { btn.classList.add('active'); gridData[tIndex][s] = true; }
 
             const toggleStep = (e) => {
-                e.preventDefault();
+                e.preventDefault(); // Prevent touch scrolling issues
                 btn.classList.toggle('active');
                 gridData[tIndex][s] = !gridData[tIndex][s];
             };
@@ -346,6 +361,13 @@
         row.appendChild(stepsDiv);
         gridWrapper.appendChild(row);
     });
+
+    // Remove Loading Screen
+    setTimeout(() => {
+        const loader = document.getElementById('loading-overlay');
+        loader.style.opacity = '0';
+        setTimeout(() => loader.remove(), 500);
+    }, 500);
 
     // --- AUDIO ENGINE ---
     async function initAudio() {
@@ -367,7 +389,7 @@
             threshold: -20, ratio: 4, attack: 0.05, release: 0.2
         }).connect(bus.preFilter);
 
-        // INSTRUMENTS (Warm V1/V2 Setup)
+        // INSTRUMENTS 
         synths.kick = new Tone.MembraneSynth({
             pitchDecay: 0.05, octaves: 6,
             envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4 }
@@ -454,25 +476,23 @@
 
     // --- CONTROLS ---
     
-    // 1. PLAY
     const playBtn = document.getElementById('playBtn');
     playBtn.addEventListener('click', async () => {
         if(!hasStarted) await initAudio();
         if(isPlaying) {
             Tone.Transport.stop();
-            playBtn.innerHTML = "▶"; // Reset to Play Icon
+            playBtn.innerHTML = "▶";
             playBtn.classList.remove('active');
             currentStep = 0;
             document.querySelectorAll('.step.current').forEach(s => s.classList.remove('current'));
         } else {
             Tone.Transport.start();
-            playBtn.innerHTML = "■"; // Stop Icon
+            playBtn.innerHTML = "■";
             playBtn.classList.add('active');
         }
         isPlaying = !isPlaying;
     });
 
-    // 2. RECORD
     document.getElementById('recBtn').addEventListener('click', () => {
         const btn = document.getElementById('recBtn');
         if(recorder.state === 'inactive') {
@@ -498,11 +518,10 @@
         a.click();
     }
 
-    // 3. KICK TOGGLE
     const kickBtn = document.getElementById('kickBtn');
     function toggleKick() {
         kickMuted = !kickMuted;
-        const row = document.getElementById('row-5'); // Kick is index 5
+        const row = document.getElementById('row-5'); // Kick is index 5 (last one)
         
         if(kickMuted) {
             kickBtn.classList.add('active');
@@ -514,7 +533,6 @@
     }
     kickBtn.addEventListener('click', toggleKick);
 
-    // 4. RISER
     document.getElementById('riserBtn').addEventListener('click', triggerRiser);
     function triggerRiser() {
         if(isRiser) return;
@@ -537,14 +555,13 @@
         }, dur * 1000);
     }
     
-    // 5. KEY / BPM
     document.getElementById('keyBtn').addEventListener('click', () => {
         transpose = (transpose + 1) % 5; 
         document.getElementById('keyBtn').innerText = `KEY +${transpose}`;
     });
     document.getElementById('bpm').addEventListener('change', e => Tone.Transport.bpm.value = parseFloat(e.target.value));
 
-    // 6. SLIDERS
+    // SLIDERS
     document.getElementById('cutoff').addEventListener('input', e => bus.filter.frequency.rampTo(parseFloat(e.target.value), 0.1));
     document.getElementById('reverb').addEventListener('input', e => bus.reverb.wet.rampTo(parseFloat(e.target.value), 0.1));
     document.getElementById('delay').addEventListener('input', e => bus.delay.wet.rampTo(parseFloat(e.target.value), 0.1));
@@ -557,7 +574,7 @@
         });
     });
 
-    // --- SHORTCUTS ---
+    // SHORTCUTS
     window.addEventListener('keydown', (e) => {
         if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) {
             e.preventDefault();
@@ -567,7 +584,6 @@
         if(e.key.toLowerCase() === 'k') toggleKick();
         if(e.key.toLowerCase() === 'r') triggerRiser();
         
-        // Filter W/S
         const cutEl = document.getElementById('cutoff');
         if(e.key.toLowerCase() === 'w') {
             cutEl.value = Math.min(5000, parseInt(cutEl.value) + 300);
@@ -577,7 +593,6 @@
             cutEl.value = Math.max(100, parseInt(cutEl.value) - 300);
             cutEl.dispatchEvent(new Event('input'));
         }
-        // Reverb
         const verbEl = document.getElementById('reverb');
         if(e.key === 'ArrowUp') {
             verbEl.value = Math.min(1, parseFloat(verbEl.value) + 0.1);
@@ -587,7 +602,6 @@
             verbEl.value = Math.max(0, parseFloat(verbEl.value) - 0.1);
             verbEl.dispatchEvent(new Event('input'));
         }
-        // Delay
         const delEl = document.getElementById('delay');
         if(e.key === 'ArrowRight') {
             delEl.value = Math.min(0.8, parseFloat(delEl.value) + 0.05);
@@ -607,4 +621,20 @@
         const values = analyser.getValue();
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, 150, 60);
-        ctx.
+        ctx.strokeStyle = '#dfae68';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const slice = 150 / values.length;
+        let x = 0;
+        for(let i=0; i<values.length; i++){
+            const v = (values[i] + 1) / 2;
+            const y = v * 60;
+            if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            x+=slice;
+        }
+        ctx.stroke();
+    }
+});
+</script>
+</body>
+</html>
