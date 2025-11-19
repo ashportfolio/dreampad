@@ -214,6 +214,30 @@
             .fx-panel { gap: 15px; padding: 10px; }
             .step { width: 32px; }
         }
+
+        /* --- MORE MOBILE OPTIMIZATIONS --- */
+        @media (max-width: 600px) {
+            /* Hide Keyboard Shortcuts on Phone */
+            .hotkey, .subtitle { display: none !important; }
+            
+            /* Make the bottom panel scrolling more obvious */
+            .fx-panel { 
+                padding-right: 40px; /* Show that there is more to scroll */
+                -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
+            }
+
+            /* Make Slider Thumbs Bigger for Fingers */
+            .vol-slider::-webkit-slider-thumb {
+                height: 20px; 
+                width: 20px; 
+                margin-top: -8px;
+                background: var(--accent); /* Make them Gold so they stand out */
+            }
+
+            /* Make Track Names smaller to fit screen */
+            .channel-controls { width: 90px; }
+            .channel-name { font-size: 0.6rem; }
+        }
     </style>
 </head>
 <body>
