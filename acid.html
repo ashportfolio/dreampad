@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DreamPad: Freestyle Emotive DAW (Acid Dub Edition) | Projects by Ash</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        :root {
+            --bg: #0d0d0d;
+            --panel: #161616;
+            --step-off: #222;
+            --step-on: #bfff00; /* Acid Green */
+            --accent: #bfff00;
+            --danger: #ff0055;
+            --text: #888;
+            --font: 'Courier New', Courier, monospace;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        /* --- HEADER --- */
+        header {
+            height: 60px;
+            background: var(--panel);
+            border-bottom: 1px solid #222;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .header-left { display: flex; flex-direction: column; justify-content: center; }
+        h1 { font-size: 1rem; color: #fff; letter-spacing: -1px; font-weight: 700; margin: 0; text-transform: uppercase;}
+        .subtitle { font-size: 0.65rem; color: var(--accent); margin-top: 2px; opacity: 0.8; }
+        .subtitle span { margin-right: 8px; }
+
+        .transport { display: flex; gap: 10px; align-items: center; }
+
+        button {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            color: var(--accent);
+            padding: 0 12px;
+            height: 36px;
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: bold;
+            transition: all 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font);
+        }
+        button:hover { border-color: var(--accent); background: #1a1a1a; }
+        button.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+        .btn-icon { font-size: 1.2rem; width: 40px; }
+        .btn-rec.active { color: var(--danger); border-color: var(--danger); background: transparent; animation: blink 1s step-end infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        input[type=number] {
+            background: #0a0a0a; border: 1px solid #333; color: var(--accent);
+            padding: 5px; width: 50px; text-align: center; border-radius: 2px; height: 36px; font-weight: bold; font-family: var(--font);
+        }
+        .label-group { display: flex; align-items: center; gap: 5px; font-size: 0.7rem; }
+
+        /* --- GRID --- */
+        .main-area {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+            background: #050505;
+            display: flex; flex-direction: column;
+        }
+
+        .grid-scroll-container {
+            flex-grow: 1;
+            width: 100%;
+            overflow: auto;
+            padding: 20px 10px;
+        }
+
+        .channel-row {
+            display: flex; height: 60px; margin-bottom: 8px;
+            align-items: center; min-width: max-content;
+        }
+        .channel-row.muted { opacity: 0.3; }
+        .channel-row.muted .channel-name { text-decoration: line-through; }
+        
+        .channel-controls {
+            width: 130px; padding-right: 15px;
+            display: flex; flex-direction: column; justify-content: center;
+            position: sticky; left: 0; background: var(--bg); z-index: 2;
+            border-right: 1px solid #222;
+        }
+
+        .channel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .channel-name { font-size: 0.7rem; font-weight: bold; color: #ccc; letter-spacing: 0px; }
+
+        .upload-btn {
+            background: none; border: 1px solid #333; color: #555;
+            width: 20px; height: 20px; border-radius: 2px; cursor: pointer;
+            display: flex; justify-content: center; align-items: center; font-size: 0.8rem; padding: 0;
+        }
+        .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .upload-btn.has-file { color: var(--accent); border-color: var(--accent); background: #1a1a1a; }
+
+        .vol-slider {
+            width: 100%; height: 20px; -webkit-appearance: none; background: transparent; cursor: pointer;
+        }
+        .vol-slider::-webkit-slider-runnable-track {
+            width: 100%; height: 2px; background: #333;
+        }
+        .vol-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 12px; width: 12px; 
+            background: #555; border-radius: 0; margin-top: -5px;
+            transition: background 0.2s;
+        }
+        .vol-slider:hover::-webkit-slider-thumb { background: var(--accent); }
+
+        .sequencer-steps { display: flex; gap: 2px; margin-left: 5px; }
+
+        .step {
+            width: 36px; height: 55px;
+            background: var(--step-off);
+            border-radius: 1px;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .step.active { background: var(--step-on); box-shadow: 0 0 15px rgba(191, 255, 0, 0.3); }
+        .step.current { border: 1px solid #fff; z-index: 5; }
+        .step:nth-child(4n) { margin-right: 6px; } 
+
+        /* --- FX PANEL --- */
+        .fx-panel {
+            background: var(--panel); border-top: 1px solid #222;
+            padding: 15px 20px; display: flex; align-items: center; gap: 30px;
+            flex-shrink: 0; overflow-x: auto; height: 120px;
+        }
+
+        .fx-group { display: flex; flex-direction: column; gap: 8px; min-width: 120px; }
+        .fx-group label { font-size: 0.7rem; color: #666; font-weight: bold; display: flex; justify-content: space-between; }
+        .hotkey { color: var(--accent); opacity: 0.7; }
+        
+        .perf-group { display: flex; gap: 10px; margin-left: auto; }
+        .perf-btn { 
+            width: 80px; height: 60px; display: flex; flex-direction: column; gap: 5px; 
+            font-size: 0.7rem; text-transform: uppercase; border: 1px solid #333;
+        }
+        
+        .kick-btn.active { background: #333; color: #fff; border-color: #fff; }
+        .freeze-btn { border-bottom: 3px solid var(--accent); }
+        .freeze-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+        #visualizer {
+            width: 150px; height: 60px; background: #000; border: 1px solid #333;
+            flex-shrink: 0; opacity: 0.8;
+        }
+        
+        #loading-overlay {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: var(--bg); display: flex; justify-content: center; align-items: center;
+            z-index: 100; color: var(--accent); font-size: 1.2rem; font-family: var(--font);
+            transition: opacity 0.5s;
+        }
+
+        @media (max-width: 600px) {
+            .subtitle span, .hotkey { display: none !important; }
+            .fx-panel { padding-right: 40px; -webkit-overflow-scrolling: touch; }
+            .vol-slider::-webkit-slider-thumb { height: 20px; width: 20px; margin-top: -9px; background: var(--accent); }
+            .channel-controls { width: 110px; }
+            .channel-name { font-size: 0.6rem; }
+            h1 { font-size: 0.9rem; }
+            .step { width: 32px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="loading-overlay">PETTING SOME CUTE CATS...</div>
+
+<header>
+    <div class="header-left">
+        <h1>//TAKE ACID. PLAY DUB.</h1>
+        <div class="subtitle">
+            <span>SPACE = PLAY</span>
+            <span>R = ECHO FREEZE</span>
+        </div>
+    </div>
+    
+    <div class="transport">
+        <div class="label-group">
+            <button id="keyBtn" style="height:26px; font-size:0.6rem; width:auto; padding:0 8px;">TUNE</button>
+        </div>
+        <div class="label-group">
+            BPM <input type="number" id="bpm" value="124" min="110" max="136">
+        </div>
+        <button id="playBtn" class="btn-icon">▶</button>
+        <button id="recBtn" class="btn-icon btn-rec">●</button>
+    </div>
+</header>
+
+<div class="main-area">
+    <div class="grid-scroll-container" id="grid-wrapper">
+        <!-- Grid Generated JS -->
+    </div>
+</div>
+
+<div class="fx-panel">
+    <canvas id="visualizer"></canvas>
+
+    <div class="fx-group">
+        <label>ACID CUTOFF <span class="hotkey">W / S</span></label>
+        <input type="range" class="vol-slider" id="acidCutoff" min="0" max="10000" value="1000">
+    </div>
+
+    <div class="fx-group">
+        <label>DUB SPACE <span class="hotkey">↑ / ↓</span></label>
+        <input type="range" class="vol-slider" id="dubSend" min="0" max="1" step="0.05" value="0.3">
+    </div>
+
+    <div class="fx-group">
+        <label>TAPE DELAY <span class="hotkey">← / →</span></label>
+        <input type="range" class="vol-slider" id="delayTime" min="0" max="1" step="0.05" value="0.4">
+    </div>
+
+    <div class="perf-group">
+        <button id="kickBtn" class="perf-btn kick-btn">
+            KICK MUTE
+        </button>
+        <button id="freezeBtn" class="perf-btn freeze-btn">
+            DELAY FREEZE
+        </button>
+    </div>
+</div>
+
+<input type="file" id="vocalUpload" accept="audio/*" style="display:none;">
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+    try {
+        if (typeof Tone === 'undefined') {
+            throw new Error("Audio Engine not loaded.");
+        }
+
+        // --- CONFIGURATION ---
+        const STEPS = 16;
+        const CHANNELS = [
+            { id: 'noise',   name: 'TEXTURE', type: 'noise',   vol: -20 }, 
+            { id: 'vocal',   name: 'VOICE',   type: 'sample',  vol: -4, upload: true },
+            { id: 'hats',    name: 'HATS',    type: 'drum',    vol: -10 },
+            { id: 'glitch',  name: 'GLITCH',  type: 'perc',    vol: -14 },
+            { id: 'dub',     name: 'DUB STAB',type: 'chord',   vol: -10 },
+            { id: 'acid',    name: '303 ACID',type: 'acid',    vol: -8 },
+            { id: 'sub',     name: 'SUB BASS',type: 'bass',    vol: -4 },
+            { id: 'kick',    name: 'KICK',    type: 'kick',    vol: 0 }
+        ];
+
+        const DUB_CHORD = ['G3', 'Bb3', 'D4', 'F4'];
+        const ACID_SCALE = ['G2', 'G2', 'Bb2', 'C3', 'D3', 'F3', 'G3', 'Bb3'];
+        const VOICE_NOTE = 'G3';
+
+        let isPlaying = false;
+        let hasStarted = false;
+        let currentStep = 0;
+        let gridData = []; 
+        let isFreeze = false;
+        let kickMuted = false; 
+        
+        let synths = {};
+        let bus = {};
+        let recorder, chunks = [];
+        let analyser;
+
+        // --- UI BUILD ---
+        const gridWrapper = document.getElementById('grid-wrapper');
+        gridWrapper.innerHTML = ''; 
+
+        CHANNELS.forEach((chan, tIndex) => {
+            gridData[tIndex] = new Array(STEPS).fill(false);
+            const row = document.createElement('div');
+            row.className = 'channel-row';
+            row.dataset.id = chan.id;
+
+            let headerHTML = `<div class="channel-name">${chan.name}</div>`;
+            if (chan.upload) {
+                headerHTML = `
+                    <div class="channel-header">
+                        <div class="channel-name">${chan.name}</div>
+                        <button class="upload-btn" id="uploadBtn">↑</button>
+                    </div>`;
+            }
+
+            const controls = document.createElement('div');
+            controls.className = 'channel-controls'; 
+            controls.innerHTML = `
+                ${headerHTML}
+                <input type="range" class="vol-slider" min="-40" max="5" value="${chan.vol}" data-id="${chan.id}">
+            `;
+            row.appendChild(controls);
+
+            const stepsDiv = document.createElement('div');
+            stepsDiv.className = 'sequencer-steps';
+
+            for (let s = 0; s < STEPS; s++) {
+                const btn = document.createElement('div');
+                btn.className = 'step';
+                btn.dataset.track = tIndex;
+                
+                // --- DEFAULTS ---
+                let active = false;
+                if(chan.id === 'kick' && s % 4 === 0) active = true;
+                if(chan.id === 'hats' && (s===2 || s===6 || s===10 || s===14)) active = true;
+                if(chan.id === 'sub' && (s===3 || s===9 || s===11)) active = true; 
+                if(chan.id === 'dub' && s===0) active = true; 
+                if(chan.id === 'acid' && (s===2 || s===4 || s===5 || s===8)) active = true;
+                // Enable first beat for Vocal so user hears fallback
+                if(chan.id === 'vocal' && s===0) active = true; 
+
+                if(active) { btn.classList.add('active'); gridData[tIndex][s] = true; }
+
+                const toggleStep = (e) => {
+                    e.preventDefault();
+                    btn.classList.toggle('active');
+                    gridData[tIndex][s] = !gridData[tIndex][s];
+                };
+                btn.addEventListener('mousedown', toggleStep);
+                stepsDiv.appendChild(btn);
+            }
+            row.appendChild(stepsDiv);
+            gridWrapper.appendChild(row);
+        });
+
+        // Upload Logic
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('vocalUpload');
+        if(uploadBtn) uploadBtn.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if(!hasStarted) await initAudio();
+                const url = URL.createObjectURL(file);
+                const player = new Tone.Player(url).connect(bus.dubSend); 
+                await player.loaded;
+                synths.vocalPlayer = player;
+                uploadBtn.classList.add('has-file');
+                alert("Sample loaded into Dub Engine");
+            }
+        });
+
+        setTimeout(() => {
+            const loader = document.getElementById('loading-overlay');
+            if(loader) { loader.style.opacity = '0'; setTimeout(() => loader.remove(), 500); }
+        }, 500);
+
+        // --- AUDIO ENGINE ---
+        async function initAudio() {
+            if(hasStarted) return;
+            await Tone.start();
+            hasStarted = true;
+            
+            bus.master = new Tone.Gain(1).toDestination();
+            bus.limiter = new Tone.Limiter(-1).connect(bus.master);
+            
+            bus.dubReverb = new Tone.Reverb({ decay: 8, wet: 0.5 }).connect(bus.limiter);
+            bus.dubDelay = new Tone.FeedbackDelay("8n.", 0.4).connect(bus.dubReverb);
+            bus.dubFilter = new Tone.Filter(1500, "lowpass", -12).connect(bus.dubDelay);
+            bus.dubSend = new Tone.Gain(1).connect(bus.dubFilter);
+            
+            bus.clean = new Tone.Gain(1).connect(bus.limiter);
+            bus.acidDist = new Tone.Chebyshev(30).connect(bus.limiter);
+            bus.acidDist.wet.value = 0.2;
+            bus.comp = new Tone.Compressor(-15, 3).connect(bus.clean);
+
+            // 1. KICK 
+            synths.kick = new Tone.MembraneSynth({
+                pitchDecay: 0.02, octaves: 4,
+                envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1 }
+            }).connect(bus.comp);
+
+            // 2. SUB 
+            synths.sub = new Tone.MonoSynth({
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.05, decay: 0.3, sustain: 0.8, release: 1 },
+                filterEnvelope: { attack: 0.001, decay: 0.1, sustain: 0.5, baseFrequency: 80, octaves: 2 }
+            }).connect(bus.comp);
+
+            // 3. ACID 
+            synths.acid = new Tone.MonoSynth({
+                oscillator: { type: "sawtooth" },
+                filter: { type: "lowpass", rolloff: -24, Q: 3 },
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 },
+                filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0, baseFrequency: 300, octaves: 4 }
+            }).connect(bus.acidDist);
+            synths.acid.connect(bus.dubSend);
+
+            // 4. DUB CHORD
+            synths.dub = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "square" },
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 }
+            }).connect(bus.dubSend);
+
+            // 5. HATS 
+            synths.hats = new Tone.MetalSynth({
+                frequency: 200, envelope: { attack: 0.001, decay: 0.03, release: 0.01 },
+                harmonicity: 4, modulationIndex: 20, resonance: 3000, octaves: 1
+            }).connect(bus.clean);
+
+            // 6. GLITCH
+            synths.glitch = new Tone.NoiseSynth({
+                noise: { type: 'white' },
+                envelope: { attack: 0.001, decay: 0.05, sustain: 0 }
+            }).connect(bus.dubSend); 
+
+            // 7. VOCAL FALLBACK (Dedicated Synth)
+            // A breathy, hollow sound
+            synths.voice = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.1, decay: 0.5, sustain: 0.3, release: 1 }
+            }).connect(bus.dubSend);
+
+            // 8. TEXTURE
+            synths.noise = new Tone.Noise("pink").connect(new Tone.Filter(200, "lowpass").connect(bus.dubReverb));
+            synths.noise.volume.value = -30;
+            synths.noise.start(); 
+
+            CHANNELS.forEach(t => { if(synths[t.id]) synths[t.id].volume.value = t.vol; });
+
+            Tone.Transport.scheduleRepeat(sequencerLoop, "16n");
+            Tone.Transport.bpm.value = 124;
+
+            const dest = Tone.context.createMediaStreamDestination();
+            bus.master.connect(dest);
+            recorder = new MediaRecorder(dest.stream);
+            recorder.ondataavailable = e => chunks.push(e.data);
+            recorder.onstop = saveWav;
+
+            analyser = new Tone.Analyser("waveform", 128);
+            bus.master.connect(analyser);
+            drawVisualizer();
+        }
+
+        function sequencerLoop(time) {
+            Tone.Draw.schedule(() => {
+                document.querySelectorAll('.step.current').forEach(s => s.classList.remove('current'));
+                document.querySelectorAll(`.step[data-step="${currentStep}"]`).forEach(s => s.classList.add('current'));
+            }, time);
+
+            CHANNELS.forEach((chan, tIndex) => {
+                if (gridData[tIndex][currentStep]) {
+                    if (chan.id === 'kick' && kickMuted) return;
+                    playNote(chan, time);
+                }
+            });
+            currentStep = (currentStep + 1) % STEPS;
+        }
+
+        function playNote(chan, time) {
+            if(chan.id === 'kick') {
+                synths.kick.triggerAttackRelease("C1", "8n", time);
+            } else if (chan.id === 'hats') {
+                // Fixed: MetalSynth needs a note name/frequency
+                synths.hats.triggerAttackRelease("C4", "32n", time, 0.7 + Math.random()*0.3);
+            } else if (chan.id === 'acid') {
+                const note = ACID_SCALE[Math.floor(Math.random() * ACID_SCALE.length)];
+                synths.acid.triggerAttackRelease(note, "16n", time);
+                synths.acid.filterEnvelope.baseFrequency = 300 + Math.random()*500;
+            } else if (chan.id === 'dub') {
+                synths.dub.triggerAttackRelease(DUB_CHORD, "16n", time);
+            } else if (chan.id === 'sub') {
+                synths.sub.triggerAttackRelease("G1", "8n", time);
+            } else if (chan.id === 'glitch') {
+                synths.glitch.triggerAttackRelease("32n", time);
+            } else if (chan.id === 'vocal') {
+                if (synths.vocalPlayer && synths.vocalPlayer.loaded) {
+                    synths.vocalPlayer.start(time);
+                } else {
+                    // Fixed: Uses dedicated voice synth
+                    synths.voice.triggerAttackRelease(VOICE_NOTE, "8n", time);
+                }
+            }
+        }
+
+        // --- CONTROLS ---
+        const playBtn = document.getElementById('playBtn');
+        playBtn.addEventListener('click', async () => {
+            if(!hasStarted) await initAudio();
+            if(isPlaying) {
+                Tone.Transport.stop();
+                playBtn.innerHTML = "▶";
+                playBtn.classList.remove('active');
+                currentStep = 0;
+                document.querySelectorAll('.step.current').forEach(s => s.classList.remove('current'));
+            } else {
+                Tone.Transport.start();
+                playBtn.innerHTML = "■";
+                playBtn.classList.add('active');
+            }
+            isPlaying = !isPlaying;
+        });
+
+        document.getElementById('recBtn').addEventListener('click', () => {
+            const btn = document.getElementById('recBtn');
+            if(recorder.state === 'inactive') {
+                chunks = []; recorder.start();
+                btn.classList.add('active'); btn.innerHTML = "■";
+            } else {
+                recorder.stop();
+                btn.classList.remove('active'); btn.innerHTML = "●";
+            }
+        });
+
+        function saveWav() {
+            const blob = new Blob(chunks, { type: 'audio/wav' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none'; a.href = url; a.download = `acid_dub_session.wav`;
+            document.body.appendChild(a); a.click();
+        }
+
+        const kickBtn = document.getElementById('kickBtn');
+        kickBtn.addEventListener('click', () => {
+            kickMuted = !kickMuted;
+            kickBtn.classList.toggle('active');
+            const row = document.querySelector('.channel-row[data-id="kick"]');
+            if(row) row.classList.toggle('muted');
+        });
+
+        const freezeBtn = document.getElementById('freezeBtn');
+        freezeBtn.addEventListener('click', () => {
+            if(isFreeze) return;
+            isFreeze = true;
+            freezeBtn.classList.add('active');
+            
+            const now = Tone.now();
+            bus.dubDelay.feedback.rampTo(0.95, 1);
+            bus.dubFilter.frequency.rampTo(5000, 2); 
+
+            setTimeout(() => {
+                bus.dubDelay.feedback.rampTo(0.4, 1);
+                bus.dubFilter.frequency.rampTo(1500, 1);
+                freezeBtn.classList.remove('active');
+                isFreeze = false;
+            }, 4000); 
+        });
+
+        // SLIDERS
+        document.getElementById('acidCutoff').addEventListener('input', e => {
+             if(synths.acid) synths.acid.filterEnvelope.baseFrequency = parseFloat(e.target.value);
+        });
+        document.getElementById('dubSend').addEventListener('input', e => {
+             bus.dubSend.gain.rampTo(parseFloat(e.target.value), 0.1);
+        });
+        document.getElementById('delayTime').addEventListener('input', e => {
+             const val = parseFloat(e.target.value); 
+             bus.dubDelay.delayTime.rampTo(val * 0.5 + 0.1, 0.5);
+        });
+
+        document.querySelectorAll('.vol-slider').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const id = e.target.dataset.id;
+                if(id === 'vocal' && synths.vocalPlayer) {
+                    synths.vocalPlayer.volume.rampTo(parseFloat(e.target.value), 0.1);
+                }
+                if(synths[id]) synths[id].volume.rampTo(parseFloat(e.target.value), 0.1);
+            });
+        });
+
+        document.getElementById('bpm').addEventListener('change', e => Tone.Transport.bpm.value = parseFloat(e.target.value));
+
+        // Keyboard
+        window.addEventListener('keydown', (e) => {
+            if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+            if(e.key === ' ') playBtn.click();
+            if(e.key.toLowerCase() === 'r') freezeBtn.click();
+            
+            // Fixed: Correct IDs for Acid Version
+            if(e.key.toLowerCase() === 'w') {
+                const el = document.getElementById('acidCutoff');
+                el.value = Math.min(10000, parseInt(el.value) + 500);
+                el.dispatchEvent(new Event('input'));
+            }
+            if(e.key.toLowerCase() === 's') {
+                const el = document.getElementById('acidCutoff');
+                el.value = Math.max(0, parseInt(el.value) - 500);
+                el.dispatchEvent(new Event('input'));
+            }
+            
+            if(e.key === 'ArrowUp') {
+                const el = document.getElementById('dubSend');
+                el.value = Math.min(1, parseFloat(el.value) + 0.1);
+                el.dispatchEvent(new Event('input'));
+            }
+            if(e.key === 'ArrowDown') {
+                const el = document.getElementById('dubSend');
+                el.value = Math.max(0, parseFloat(el.value) - 0.1);
+                el.dispatchEvent(new Event('input'));
+            }
+            
+            if(e.key === 'ArrowRight') {
+                const el = document.getElementById('delayTime');
+                el.value = Math.min(1, parseFloat(el.value) + 0.05);
+                el.dispatchEvent(new Event('input'));
+            }
+            if(e.key === 'ArrowLeft') {
+                const el = document.getElementById('delayTime');
+                el.value = Math.max(0, parseFloat(el.value) - 0.05);
+                el.dispatchEvent(new Event('input'));
+            }
+        });
+
+        const ctx = document.getElementById('visualizer').getContext('2d');
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+            if(!analyser) return;
+            const values = analyser.getValue();
+            ctx.fillStyle = '#050505';
+            ctx.fillRect(0, 0, 150, 60);
+            ctx.strokeStyle = '#bfff00';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            const slice = 150 / values.length;
+            let x = 0;
+            for(let i=0; i<values.length; i++){
+                const v = (values[i] + 1) / 2;
+                const y = v * 60;
+                if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+                x+=slice;
+            }
+            ctx.stroke();
+        }
+    } catch (e) {
+        alert("System Error: " + e.message);
+    }
+});
+</script>
+</body>
+</html>
