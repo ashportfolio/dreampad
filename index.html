@@ -111,7 +111,7 @@
         .channel-row.muted .channel-name { text-decoration: line-through; }
 
         .channel-controls {
-            width: 130px; 
+            width: 135px; 
             padding-right: 15px;
             display: flex;
             flex-direction: column;
@@ -130,14 +130,14 @@
 
         .channel-name { font-size: 0.7rem; font-weight: bold; color: #fff; letter-spacing: 1px;}
         
-        .upload-btn {
+        .mini-btn {
             background: none; border: 1px solid #444; color: #888;
             width: 20px; height: 20px; border-radius: 3px; cursor: pointer;
             display: flex; justify-content: center; align-items: center;
-            font-size: 0.8rem; padding: 0;
+            font-size: 0.8rem; padding: 0; margin-left: 5px;
         }
-        .upload-btn:hover { color: #fff; border-color: #fff; }
-        .upload-btn.has-file { color: var(--accent); border-color: var(--accent); }
+        .mini-btn:hover { color: #fff; border-color: #fff; }
+        .mini-btn.has-file { color: var(--accent); border-color: var(--accent); }
 
         .vol-slider {
             width: 100%; height: 20px; -webkit-appearance: none; background: transparent; cursor: pointer;
@@ -269,7 +269,7 @@
 
     <div class="fx-group">
         <label>FILTER <span class="hotkey">W / S</span></label>
-        <input type="range" class="vol-slider" id="cutoff" min="100" max="5000" value="800">
+        <input type="range" class="vol-slider" id="cutoff" min="100" max="5000" value="600">
     </div>
 
     <div class="fx-group">
@@ -292,7 +292,6 @@
     </div>
 </div>
 
-<!-- Hidden File Input for Vocals -->
 <input type="file" id="vocalUpload" accept="audio/*" style="display:none;">
 
 <script>
@@ -307,8 +306,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const CHANNELS = [
             { id: 'glitter', name: 'GLITTER', type: 'melodic', oct: 5, vol: -14 }, 
             { id: 'vocal',   name: 'VOCAL',   type: 'sample',  oct: 4, vol: -4, upload: true },
-            // UPDATED: Hats lowered significantly (-18)
-            { id: 'hats',    name: 'HATS',    type: 'noise',   oct: 0, vol: -18 },
+            { id: 'hats',    name: 'HATS',    type: 'noise',   oct: 0, vol: -10, action: 'fill4' }, // Added Action
             { id: 'pluck',   name: 'PLUCK',   type: 'melodic', oct: 4, vol: -10 },
             { id: 'pad',     name: 'PADS',    type: 'chord',   oct: 3, vol: -12 },
             { id: 'horn',    name: 'HORN',    type: 'melodic', oct: 2, vol: -6 },
@@ -332,7 +330,6 @@ window.addEventListener('DOMContentLoaded', () => {
         let bus = {};
         let recorder, chunks = [];
         let analyser;
-        let vocalBuffer = null; 
 
         // --- BUILD UI ---
         const gridWrapper = document.getElementById('grid-wrapper');
@@ -348,25 +345,27 @@ window.addEventListener('DOMContentLoaded', () => {
             const controls = document.createElement('div');
             controls.className = 'channel-controls'; 
             
-            let headerHTML = `<div class="channel-name">${chan.name}</div>`;
-            
+            let extraBtn = '';
             if (chan.upload) {
-                headerHTML = `
-                    <div class="channel-header">
-                        <div class="channel-name">${chan.name}</div>
-                        <button class="upload-btn" id="uploadBtn" title="Upload Sample">↑</button>
-                    </div>
-                `;
+                extraBtn = `<button class="mini-btn" id="uploadBtn" title="Upload">↑</button>`;
+            } else if (chan.action === 'fill4') {
+                // Button to auto-fill 4/4 pattern
+                extraBtn = `<button class="mini-btn" id="fillHats" title="Add 4/4">4/4</button>`;
             }
 
             controls.innerHTML = `
-                ${headerHTML}
+                <div class="channel-header">
+                    <div class="channel-name">${chan.name}</div>
+                    ${extraBtn}
+                </div>
                 <input type="range" class="vol-slider" min="-30" max="5" value="${chan.vol}" data-id="${chan.id}">
             `;
             row.appendChild(controls);
 
             const stepsDiv = document.createElement('div');
             stepsDiv.className = 'sequencer-steps';
+            // ID for quick access to steps
+            stepsDiv.id = `steps-${tIndex}`;
 
             for (let s = 0; s < STEPS; s++) {
                 const btn = document.createElement('div');
@@ -376,9 +375,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 
                 // --- PATTERN INIT ---
                 let active = false;
+                // Only Kick is active by default
                 if(chan.id === 'kick' && s % 4 === 0) active = true;
-                // UPDATED: Hats now match Kick (s%4) to avoid frantic offbeat start
-                if(chan.id === 'hats' && s % 4 === 0) active = true;
                 
                 if(active) { btn.classList.add('active'); gridData[tIndex][s] = true; }
 
@@ -394,11 +392,35 @@ window.addEventListener('DOMContentLoaded', () => {
             gridWrapper.appendChild(row);
         });
 
+        // EVENT LISTENERS FOR BUTTONS
         const uploadBtn = document.getElementById('uploadBtn');
         const fileInput = document.getElementById('vocalUpload');
-        
-        if(uploadBtn) {
-            uploadBtn.addEventListener('click', () => fileInput.click());
+        if(uploadBtn) uploadBtn.addEventListener('click', () => fileInput.click());
+
+        // Hats Fill Logic
+        const fillHatsBtn = document.getElementById('fillHats');
+        if(fillHatsBtn) {
+            fillHatsBtn.addEventListener('click', () => {
+                // Find the Hat index
+                const tIndex = CHANNELS.findIndex(c => c.id === 'hats');
+                if(tIndex > -1) {
+                    const stepContainer = document.getElementById(`steps-${tIndex}`);
+                    const steps = stepContainer.querySelectorAll('.step');
+                    
+                    for(let s=0; s<STEPS; s++) {
+                        // Toggle 4/4 pattern (0, 4, 8, 12)
+                        if (s % 4 === 0) {
+                            // Force ON
+                            gridData[tIndex][s] = true;
+                            steps[s].classList.add('active');
+                        } else {
+                            // Force OFF
+                            gridData[tIndex][s] = false;
+                            steps[s].classList.remove('active');
+                        }
+                    }
+                }
+            });
         }
 
         fileInput.addEventListener('change', async (e) => {
@@ -410,7 +432,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 await player.loaded;
                 synths.vocalPlayer = player;
                 uploadBtn.classList.add('has-file');
-                uploadBtn.title = "Sample Loaded";
                 alert("Vocal sample loaded!");
             }
         });
@@ -432,24 +453,28 @@ window.addEventListener('DOMContentLoaded', () => {
             bus.master = new Tone.Gain(1).toDestination();
             bus.limiter = new Tone.Limiter(-1).connect(bus.master);
             
+            // Reverb/Delay/Filter Chain
             bus.reverb = new Tone.Reverb({ decay: 5, wet: 0.3 }).connect(bus.limiter);
             bus.delay = new Tone.PingPongDelay("8n.", 0.2).connect(bus.reverb);
-            bus.filter = new Tone.Filter(800, "lowpass", -24).connect(bus.delay);
-            bus.preFilter = new Tone.Gain(1).connect(bus.filter);
-            bus.filter.connect(bus.limiter); 
+            bus.filter = new Tone.Filter(600, "lowpass", -24).connect(bus.delay); // Lower default cutoff for warmth
+            
+            // Main Mix buses
+            bus.music = new Tone.Gain(1).connect(bus.filter);
+            bus.filter.connect(bus.limiter); // Dry signal
+
+            // Sidechain Bus (connects to Music)
+            bus.sidechain = new Tone.Gain(1).connect(bus.music);
+
+            // Clean Bus (bypasses filter/sidechain)
             bus.clean = new Tone.Gain(1).connect(bus.limiter);
 
-            bus.sidechain = new Tone.Gain(1).connect(bus.preFilter);
-
-            bus.comp = new Tone.Compressor({
-                threshold: -20, ratio: 4, attack: 0.05, release: 0.2
-            }).connect(bus.preFilter);
-
+            // KICK: Direct routing to Master (No sidechain on itself, no heavy compression)
             synths.kick = new Tone.MembraneSynth({
                 pitchDecay: 0.05, octaves: 6,
-                envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4 }
-            }).connect(bus.comp);
+                envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 1 }
+            }).connect(bus.limiter);
 
+            // BASS: Warmth via MonoSynth
             synths.bass = new Tone.MonoSynth({
                 oscillator: { type: "sawtooth" },
                 filter: { type: "lowpass", rolloff: -24, Q: 1 },
@@ -477,12 +502,16 @@ window.addEventListener('DOMContentLoaded', () => {
             synths.glitter = new Tone.PolySynth(Tone.Synth, {
                 oscillator: { type: "sine" },
                 envelope: { attack: 0.02, decay: 0.2, sustain: 0.1, release: 1 }
-            }).connect(bus.delay);
+            }).connect(bus.delay); // Glitter goes straight to echo
 
-            synths.hats = new Tone.MetalSynth({
-                frequency: 200, envelope: { attack: 0.001, decay: 0.05, release: 0.01 },
-                harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1
-            }).connect(bus.clean);
+            // HATS: Noise Synth (Soft Shaker Style)
+            synths.hats = new Tone.NoiseSynth({
+                noise: { type: "pink" },
+                envelope: { attack: 0.005, decay: 0.05, sustain: 0 }
+            });
+            // Filter the noise to remove harsh highs
+            const hatFilter = new Tone.Filter(5000, "highpass").connect(bus.clean);
+            synths.hats.connect(hatFilter);
 
             synths.vocal = new Tone.PolySynth(Tone.Synth, {
                 oscillator: { type: "sine" },
@@ -514,9 +543,10 @@ window.addEventListener('DOMContentLoaded', () => {
             CHANNELS.forEach((chan, tIndex) => {
                 if (gridData[tIndex][currentStep]) {
                     if (chan.id === 'kick' && !kickMuted) {
+                        // Trigger Sidechain Dip
                         bus.sidechain.gain.cancelScheduledValues(time);
-                        bus.sidechain.gain.setValueAtTime(0.1, time);
-                        bus.sidechain.gain.linearRampToValueAtTime(1, time + 0.15); 
+                        bus.sidechain.gain.setValueAtTime(0, time);
+                        bus.sidechain.gain.linearRampToValueAtTime(1, time + 0.1); 
                     }
                     if (chan.id === 'kick' && kickMuted) return;
                     playNote(chan, time);
@@ -534,8 +564,8 @@ window.addEventListener('DOMContentLoaded', () => {
             if(chan.id === 'kick') {
                 synths.kick.triggerAttackRelease(root + "1", "8n", time);
             } else if (chan.type === 'noise') {
-                // FIXED: Pitch note provided (C4)
-                synths.hats.triggerAttackRelease("C4", "32n", time, Math.random()*0.3 + 0.7);
+                // Trigger Noise Hat (no pitch needed for NoiseSynth)
+                synths.hats.triggerAttackRelease("32n", time);
             } else if (chan.id === 'horn') {
                 synths.horn.triggerAttackRelease(root + chan.oct, "4n", time);
             } else if (chan.id === 'vocal') {
@@ -600,7 +630,6 @@ window.addEventListener('DOMContentLoaded', () => {
         const kickBtn = document.getElementById('kickBtn');
         function toggleKick() {
             kickMuted = !kickMuted;
-            // Select by dataset
             const rows = document.querySelectorAll('.channel-row');
             let row;
             rows.forEach(r => { if(r.dataset.id === 'kick') row = r; });
