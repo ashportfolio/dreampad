@@ -307,7 +307,8 @@ window.addEventListener('DOMContentLoaded', () => {
         const CHANNELS = [
             { id: 'glitter', name: 'GLITTER', type: 'melodic', oct: 5, vol: -14 }, 
             { id: 'vocal',   name: 'VOCAL',   type: 'sample',  oct: 4, vol: -4, upload: true },
-            { id: 'hats',    name: 'HATS',    type: 'noise',   oct: 0, vol: -6 },
+            // UPDATED: Hats lowered significantly (-18)
+            { id: 'hats',    name: 'HATS',    type: 'noise',   oct: 0, vol: -18 },
             { id: 'pluck',   name: 'PLUCK',   type: 'melodic', oct: 4, vol: -10 },
             { id: 'pad',     name: 'PADS',    type: 'chord',   oct: 3, vol: -12 },
             { id: 'horn',    name: 'HORN',    type: 'melodic', oct: 2, vol: -6 },
@@ -376,7 +377,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 // --- PATTERN INIT ---
                 let active = false;
                 if(chan.id === 'kick' && s % 4 === 0) active = true;
-                if(chan.id === 'hats' && s % 2 !== 0) active = true;
+                // UPDATED: Hats now match Kick (s%4) to avoid frantic offbeat start
+                if(chan.id === 'hats' && s % 4 === 0) active = true;
                 
                 if(active) { btn.classList.add('active'); gridData[tIndex][s] = true; }
 
@@ -478,8 +480,8 @@ window.addEventListener('DOMContentLoaded', () => {
             }).connect(bus.delay);
 
             synths.hats = new Tone.MetalSynth({
-                frequency: 2500, envelope: { attack: 0.001, decay: 0.05, release: 0.01 },
-                harmonicity: 5.1, modulationIndex: 40, resonance: 3000, octaves: 1
+                frequency: 200, envelope: { attack: 0.001, decay: 0.05, release: 0.01 },
+                harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1
             }).connect(bus.clean);
 
             synths.vocal = new Tone.PolySynth(Tone.Synth, {
@@ -532,7 +534,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if(chan.id === 'kick') {
                 synths.kick.triggerAttackRelease(root + "1", "8n", time);
             } else if (chan.type === 'noise') {
-                // FIX: Added note pitch for MetalSynth
+                // FIXED: Pitch note provided (C4)
                 synths.hats.triggerAttackRelease("C4", "32n", time, Math.random()*0.3 + 0.7);
             } else if (chan.id === 'horn') {
                 synths.horn.triggerAttackRelease(root + chan.oct, "4n", time);
