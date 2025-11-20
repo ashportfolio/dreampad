@@ -100,6 +100,7 @@
         .channel-row {
             display: flex; height: 60px; margin-bottom: 8px;
             align-items: center; min-width: max-content;
+            transition: opacity 0.2s;
         }
         .channel-row.muted { opacity: 0.3; }
         .channel-row.muted .channel-name { text-decoration: line-through; }
@@ -143,6 +144,7 @@
             border-radius: 1px;
             flex-shrink: 0;
             position: relative;
+            transition: background 0.1s;
         }
         .step.active { background: var(--step-on); box-shadow: 0 0 15px rgba(191, 255, 0, 0.3); }
         .step.current { border: 1px solid #fff; z-index: 5; }
@@ -201,16 +203,17 @@
         <h1>//TAKE ACID. PLAY DUB.</h1>
         <div class="subtitle">
             <span>SPACE = PLAY</span>
-            <span>R = ECHO FREEZE</span>
+            <span>K = KICK MUTE</span>
+            <span>R = FREEZE</span>
         </div>
     </div>
     
     <div class="transport">
         <div class="label-group">
-            <button id="keyBtn" style="height:26px; font-size:0.6rem; width:auto; padding:0 8px;">TUNE</button>
+            <button id="keyBtn" style="height:24px; font-size:0.6rem; width:auto; padding:0 8px;">TUNE</button>
         </div>
         <div class="label-group">
-            BPM <input type="number" id="bpm" value="124" min="110" max="136">
+            BPM <input type="number" id="bpm" value="124" min="110" max="135">
         </div>
         <button id="playBtn" class="btn-icon">▶</button>
         <button id="recBtn" class="btn-icon btn-rec">●</button>
@@ -257,7 +260,7 @@
 window.addEventListener('DOMContentLoaded', () => {
     try {
         if (typeof Tone === 'undefined') {
-            throw new Error("Audio Engine not loaded.");
+            throw new Error("Audio Engine not loaded. Check AdBlock.");
         }
 
         // --- CONFIGURATION ---
@@ -304,7 +307,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 headerHTML = `
                     <div class="channel-header">
                         <div class="channel-name">${chan.name}</div>
-                        <button class="upload-btn" id="uploadBtn">↑</button>
+                        <button class="upload-btn" id="uploadBtn" title="Upload Sample">↑</button>
                     </div>`;
             }
 
@@ -371,7 +374,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if(loader) { loader.style.opacity = '0'; setTimeout(() => loader.remove(), 500); }
         }, 500);
 
-        // --- AUDIO ENGINE ---
+        // --- AUDIO ENGINE (ACID DUB) ---
         async function initAudio() {
             if(hasStarted) return;
             await Tone.start();
@@ -430,8 +433,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 envelope: { attack: 0.001, decay: 0.05, sustain: 0 }
             }).connect(bus.dubSend); 
 
-            // 7. VOCAL FALLBACK (Dedicated Synth)
-            // A breathy, hollow sound
+            // 7. VOCAL FALLBACK
             synths.voice = new Tone.PolySynth(Tone.Synth, {
                 oscillator: { type: "sine" },
                 envelope: { attack: 0.1, decay: 0.5, sustain: 0.3, release: 1 }
@@ -477,7 +479,6 @@ window.addEventListener('DOMContentLoaded', () => {
             if(chan.id === 'kick') {
                 synths.kick.triggerAttackRelease("C1", "8n", time);
             } else if (chan.id === 'hats') {
-                // Fixed: MetalSynth needs a note name/frequency
                 synths.hats.triggerAttackRelease("C4", "32n", time, 0.7 + Math.random()*0.3);
             } else if (chan.id === 'acid') {
                 const note = ACID_SCALE[Math.floor(Math.random() * ACID_SCALE.length)];
@@ -493,7 +494,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (synths.vocalPlayer && synths.vocalPlayer.loaded) {
                     synths.vocalPlayer.start(time);
                 } else {
-                    // Fixed: Uses dedicated voice synth
                     synths.voice.triggerAttackRelease(VOICE_NOTE, "8n", time);
                 }
             }
@@ -591,8 +591,9 @@ window.addEventListener('DOMContentLoaded', () => {
             if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
             if(e.key === ' ') playBtn.click();
             if(e.key.toLowerCase() === 'r') freezeBtn.click();
+            // FIX: K Key added
+            if(e.key.toLowerCase() === 'k') kickBtn.click();
             
-            // Fixed: Correct IDs for Acid Version
             if(e.key.toLowerCase() === 'w') {
                 const el = document.getElementById('acidCutoff');
                 el.value = Math.min(10000, parseInt(el.value) + 500);
